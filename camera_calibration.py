@@ -42,4 +42,4 @@ ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_siz
 dist_pickle = {}
 dist_pickle["mtx"] = mtx
 dist_pickle["dist"] = dist
-pickle.dump( dist_pickle, open( "calibration_pickle.p", "wb" ) )
+pickle.dump( dist_pickle, open( "camera_calibration_pickle.p", "wb" ) )
