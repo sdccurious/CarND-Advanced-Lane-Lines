@@ -3,12 +3,13 @@ import cv2
 import pickle
 
 from image_processors import camera_undistorter
+from image_processors import hls_select
 from image_processors import sobel_direction
 from image_processors import sobel_magnitude
 from image_processors import sobel_operator
 
 # load in camera calibration
-dist_pickle = pickle.load( open( "calibration_pickle.p", "rb" ) )
+dist_pickle = pickle.load( open( "camera_calibration_pickle.p", "rb" ) )
 mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
 
@@ -53,3 +54,10 @@ cv2.imwrite('debug/sobel_direction.jpg', sobel_dir*255)
 combined = np.zeros_like(sobel_dir)
 combined[((sobel_x == 1) & (sobel_y == 1)) | ((sobel_mag == 1) & (sobel_dir == 1))] = 1
 cv2.imwrite('debug/sobel_combined.jpg', combined*255)
+
+# hls select test
+channel = 's'
+thresh=(90, 255)
+processor = hls_select(channel, thresh)
+hls_select = processor.process_image(test1_image)
+cv2.imwrite('debug/hls_select.jpg', hls_select*255)
