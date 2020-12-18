@@ -4,6 +4,7 @@ import pickle
 
 from image_processors import camera_undistorter
 from image_processors import hls_select
+from image_processors import hsv_select
 from image_processors import sobel_direction
 from image_processors import sobel_magnitude
 from image_processors import sobel_operator
@@ -61,3 +62,10 @@ thresh=(90, 255)
 processor = hls_select(channel, thresh)
 hls_select = processor.process_image(test1_image)
 cv2.imwrite('debug/hls_select.jpg', hls_select*255)
+
+# hls select test
+channel = 'v'
+thresh=(50, 255)
+processor = hsv_select(channel, thresh)
+hls_select = processor.process_image(test1_image)
+cv2.imwrite('debug/hsv_select.jpg', hls_select*255)

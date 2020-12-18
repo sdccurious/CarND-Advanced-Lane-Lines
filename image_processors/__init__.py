@@ -1,5 +1,6 @@
 from .camera_undistorter import camera_undistorter
 from .hls_select import hls_select
+from .hsv_select import hsv_select
 from .lane_finder import lane_finder
 from .perspective_warper import perspective_warper
 from .sobel_direction import sobel_direction
