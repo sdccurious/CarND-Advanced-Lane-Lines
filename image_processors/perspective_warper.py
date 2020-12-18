@@ -6,7 +6,6 @@ class perspective_warper(image_processor):
 
     def __init__(self, M):
         self.__M = M
-        self.__dist = dist
         
     def process_image(self, image):
         image_size = (image.shape[1], image.shape[0]) 

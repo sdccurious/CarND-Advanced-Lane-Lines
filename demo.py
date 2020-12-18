@@ -18,9 +18,8 @@ Minv = perspective_pickle["Minv"]
 sobel_x_thresh = (12,255)
 sobel_y_thresh = (12,255)
 saturation_thresh = (100,255)
-value_thresh = (50, 255)
 
-image_processor = lane_finder(sobel_x_thresh, sobel_y_thresh, saturation_thresh) 
+image_processor = lane_finder(mtx, dist, M, sobel_x_thresh, sobel_y_thresh, saturation_thresh)
 
 images = glob.glob('test_images/test*.jpg')
 
