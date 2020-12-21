@@ -5,24 +5,22 @@ from .image_processor import image_processor
 
 class lane_analyzer(image_processor):
 
-    def __init__(self, nwindows=9, margin=100, minpixels=50):
+    def __init__(self, nwindows, margin, minpixels, ym_per_pix):
         self.__nwindows = nwindows
         self.__margin = margin
         self.__minpixels = minpixels
+        self.__ym_per_pix = ym_per_pix
         self.__initialized = False
         self.__ploty = []
-        self.__left_fitx = []
-        self.__right_fitx = []
+        self.__left_fit = []
+        self.__right_fit = []
 
     def __find_lane_pixels(self, binary_warped):
         # Input needs to be a single channel image
         # Take a histogram of the bottom half of the image        
         histogram = np.sum(binary_warped[binary_warped.shape[0]//2:,:], axis=0)
-                                
-        # Create an output image to draw on and visualize the result
-        # Converts single channel image to 3 channel/BGR
-        # out_img = np.dstack((binary_warped, binary_warped, binary_warped))
 
+        # Create a blank image to draw the rectangles on
         out_img = np.zeros((binary_warped.shape[0], binary_warped.shape[1], 3), np.uint8)
         
         # Find the peak of the left and right halves of the histogram
@@ -86,41 +84,8 @@ class lane_analyzer(image_processor):
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
         
-        # cv2.imwrite('rectangle.jpg', out_img)
-
         return leftx, lefty, rightx, righty, out_img
-        
-    def __fit_polynomial(self, leftx, lefty, rightx, righty, image_with_windows):
-        left_fit = np.polyfit(lefty, leftx, 2)
-        right_fit = np.polyfit(righty, rightx, 2)
 
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, image_with_windows.shape[0]-1, image_with_windows.shape[0] )
-        try:
-            left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-            right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-        except TypeError:
-            # Avoids an error if `left` and `right_fit` are still none or incorrect
-            print('The function failed to fit a line!')
-            left_fitx = 1*ploty**2 + 1*ploty
-            right_fitx = 1*ploty**2 + 1*ploty
-
-        ## Visualization ##
-        # Colors in the left and right lane regions
-        image_with_windows[lefty, leftx] = [255, 0, 0]
-        image_with_windows[righty, rightx] = [0, 0, 255]
-        
-        # Plot polynomial
-        for index, y in np.ndenumerate(ploty): 
-            cv2.circle(image_with_windows, (int(left_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
-            cv2.circle(image_with_windows, (int(right_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
-            
-        # Store for next time to start search
-        self.__left_fitx = left_fitx
-        self.__right_fitx = right_fitx
-
-        return image_with_windows
-        
     def __fit_poly(self, img_shape, leftx, lefty, rightx, righty):
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
@@ -132,8 +97,8 @@ class lane_analyzer(image_processor):
         
         # Store for next time to start search and for plotting
         self.__ploty = ploty
-        self.__left_fitx = left_fitx
-        self.__right_fitx = right_fitx
+        self.__left_fit = left_fit
+        self.__right_fit = right_fit
         
         return left_fitx, right_fitx, ploty
         
@@ -141,10 +106,15 @@ class lane_analyzer(image_processor):
         image[lefty, leftx] = [255, 0, 0]
         image[righty, rightx] = [0, 0, 255]
         
+        # re-expand fit for plotting
+        ploty = self.__ploty
+        left_fitx = self.__left_fit[0]*ploty**2 + self.__left_fit[1]*ploty + self.__left_fit[2]
+        right_fitx = self.__right_fit[0]*ploty**2 + self.__right_fit[1]*ploty + self.__right_fit[2]
+
         # Plot polynomial
-        for index, y in np.ndenumerate(self.__ploty): 
-            cv2.circle(image, (int(self.__left_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
-            cv2.circle(image, (int(self.__right_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
+        for index, y in np.ndenumerate(ploty):
+            cv2.circle(image, (int(left_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
+            cv2.circle(image, (int(right_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
             
         return image
 
@@ -153,12 +123,12 @@ class lane_analyzer(image_processor):
         nonzero = binary_warped.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
-        
-        left_lane_inds = ((nonzerox > (self.__left_fitx[0]*(nonzeroy**2) + self.__left_fitx[1]*nonzeroy + self.__left_fitx[2] - self.__margin))
-                       & (nonzerox < (self.__left_fitx[0]*(nonzeroy**2) + self.__left_fitx[1]*nonzeroy + self.__left_fitx[2] + self.__margin)))
-        right_lane_inds = ((nonzerox > (self.__right_fitx[0]*(nonzeroy**2) + self.__right_fitx[1]*nonzeroy + self.__right_fitx[2] - self.__margin))
-                        & (nonzerox < (self.__right_fitx[0]*(nonzeroy**2) + self.__right_fitx[1]*nonzeroy + self.__right_fitx[2] + self.__margin)))
-        
+
+        left_lane_inds = ((nonzerox > (self.__left_fit[0]*(nonzeroy**2) + self.__left_fit[1]*nonzeroy + self.__left_fit[2] - self.__margin))
+                       & (nonzerox < (self.__left_fit[0]*(nonzeroy**2) + self.__left_fit[1]*nonzeroy + self.__left_fit[2] + self.__margin)))
+        right_lane_inds = ((nonzerox > (self.__right_fit[0]*(nonzeroy**2) + self.__right_fit[1]*nonzeroy + self.__right_fit[2] - self.__margin))
+                        & (nonzerox < (self.__right_fit[0]*(nonzeroy**2) + self.__right_fit[1]*nonzeroy + self.__right_fit[2] + self.__margin)))
+
         # Again, extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
         lefty = nonzeroy[left_lane_inds] 
@@ -189,17 +159,15 @@ class lane_analyzer(image_processor):
         cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
         cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
         result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
-        
-        # Plot polynomial
-        for index, y in np.ndenumerate(ploty): 
-            cv2.circle(image_with_windows, (int(left_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
-            cv2.circle(image_with_windows, (int(right_fitx[index]), int(y)), radius=0, color=(0, 255, 255), thickness=-1)
-        
-        # Store for next time to start search
-        self.__left_fitx = left_fitx
-        self.__right_fitx = right_fitx
-        
+
         return result
+
+    def __calculate_curvature(self):
+        y_eval = np.max(self.__ploty)
+        left_curverad = ((1 + (2*self.__left_fit[0]*y_eval*self.__ym_per_pix + self.__left_fit[1])**2)**1.5) / np.absolute(2*self.__left_fit[0])
+        right_curverad = ((1 + (2*self.__right_fit[0]*y_eval*self.__ym_per_pix + self.__right_fit[1])**2)**1.5) / np.absolute(2*self.__right_fit[0])
+
+        return left_curverad, right_curverad
         
     def process_image(self, image):
         binary_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -208,9 +176,10 @@ class lane_analyzer(image_processor):
         if self.__initialized == False:
             leftx, lefty, rightx, righty, image_with_windows = self.__find_lane_pixels(binary_image)            
             left_fitx, right_fitx, ploty = self.__fit_poly(image_shape, leftx, lefty, rightx, righty)
-            image_with_polynomial = self.__draw_poly(image_with_windows, leftx, lefty, rightx, righty)
+            processed_image = self.__draw_poly(image_with_windows, leftx, lefty, rightx, righty)
             self.__initialized = True
         else:
-            image_with_polynomial = self.__search_around_poly(binary_image)
+            processed_image = self.__search_around_poly(binary_image)
         
-        return image_with_polynomial;
+        left_curverad, right_curverad = self.__calculate_curvature()
+        return processed_image, left_curverad, right_curverad
