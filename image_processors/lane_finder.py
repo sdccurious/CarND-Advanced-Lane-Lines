@@ -35,7 +35,7 @@ class lane_finder(image_processor):
 
         image_with_lanes = cv2.addWeighted(image, 1.0, analyzed_image_unwarped, 1.0, 0)
 
-        text = 'Curvature: ' + str(round(average_curvature, 3))
+        text = 'Curvature (m): ' + str(round(average_curvature, 3))
         bottomLeftCornerOfText = (10,100)
         font = cv2.FONT_HERSHEY_SIMPLEX
         fontScale = 1
@@ -48,7 +48,7 @@ class lane_finder(image_processor):
         else:
             side = 'left'
 
-        text = 'Offset: ' + str(round(offset, 3)) + ' ' + side
+        text = 'Offset (m): ' + str(round(offset, 3)) + ' ' + side
         bottomLeftCornerOfText = (10,200)
         image_with_lanes_and_text = cv2.putText(image_with_lanes, text, bottomLeftCornerOfText, font, fontScale, fontColor, lineType)
         return image_with_lanes_and_text;
