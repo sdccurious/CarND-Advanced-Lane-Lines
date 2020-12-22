@@ -5,15 +5,17 @@ from .image_processor import image_processor
 
 class lane_analyzer(image_processor):
 
-    def __init__(self, nwindows, margin, minpixels, ym_per_pix):
+    def __init__(self, nwindows, margin, minpixels, ym_per_pix, xm_per_pix):
         self.__nwindows = nwindows
         self.__margin = margin
         self.__minpixels = minpixels
         self.__ym_per_pix = ym_per_pix
+        self.__xm_per_pix = xm_per_pix
         self.__initialized = False
         self.__ploty = []
         self.__left_fit = []
         self.__right_fit = []
+        self.__curvatures = []
 
     def __find_lane_pixels(self, binary_warped):
         # Input needs to be a single channel image
@@ -22,7 +24,7 @@ class lane_analyzer(image_processor):
 
         # Create a blank image to draw the rectangles on
         out_img = np.zeros((binary_warped.shape[0], binary_warped.shape[1], 3), np.uint8)
-        
+
         # Find the peak of the left and right halves of the histogram
         # These will be the starting point for the left and right lines
         midpoint = np.int(histogram.shape[0]//2)
@@ -53,18 +55,18 @@ class lane_analyzer(image_processor):
             win_xleft_high = leftx_current + self.__margin
             win_xright_low = rightx_current - self.__margin
             win_xright_high = rightx_current + self.__margin
-                        
+
             # Draw the windows on the visualization image
             cv2.rectangle(out_img, (win_xleft_low,win_y_low), (win_xleft_high,win_y_high), (0,255,0), 2) 
             cv2.rectangle(out_img, (win_xright_low,win_y_low), (win_xright_high,win_y_high), (0,255,0), 2) 
-            
+
             good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
             good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
-            
+
             # Append these indices to the lists
             left_lane_inds.append(good_left_inds)
             right_lane_inds.append(good_right_inds)
-            
+
             if len(good_left_inds) > self.__minpixels:
                 leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
             if len(good_right_inds) > self.__minpixels:        
@@ -137,38 +139,39 @@ class lane_analyzer(image_processor):
 
         # Fit new polynomials
         left_fitx, right_fitx, ploty = self.__fit_poly(binary_warped.shape, leftx, lefty, rightx, righty)
-        
-        ## Visualization ##
-        # Create an image to draw on and an image to show the selection window
-        out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
-        window_img = np.zeros_like(out_img)
-        # Color in left and right line pixels
-        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
 
-        # Generate a polygon to illustrate the search window area
-        # And recast the x and y points into usable format for cv2.fillPoly()
-        left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-self.__margin, ploty]))])
-        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx+self.__margin, ploty])))])
-        left_line_pts = np.hstack((left_line_window1, left_line_window2))
-        right_line_window1 = np.array([np.transpose(np.vstack([right_fitx-self.__margin, ploty]))])
-        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx+self.__margin, ploty])))])
-        right_line_pts = np.hstack((right_line_window1, right_line_window2))
+        # Create an image to draw the lines on
+        warp_zero = np.zeros_like(binary_warped).astype(np.uint8)
+        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+
+        # Recast the x and y points into usable format for cv2.fillPoly()
+        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+        pts = np.hstack((pts_left, pts_right))
 
         # Draw the lane onto the warped blank image
-        cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
-        cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
-        result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+        cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
-        return result
+        return color_warp
 
     def __calculate_curvature(self):
         y_eval = np.max(self.__ploty)
-        left_curverad = ((1 + (2*self.__left_fit[0]*y_eval*self.__ym_per_pix + self.__left_fit[1])**2)**1.5) / np.absolute(2*self.__left_fit[0])
-        right_curverad = ((1 + (2*self.__right_fit[0]*y_eval*self.__ym_per_pix + self.__right_fit[1])**2)**1.5) / np.absolute(2*self.__right_fit[0])
+        current_left_curverad = ((1 + (2*self.__left_fit[0]*y_eval*self.__ym_per_pix + self.__left_fit[1])**2)**1.5) / np.absolute(2*self.__left_fit[0])        
+        current_right_curverad = ((1 + (2*self.__right_fit[0]*y_eval*self.__ym_per_pix + self.__right_fit[1])**2)**1.5) / np.absolute(2*self.__right_fit[0])
+        current_average_curverad = (current_left_curverad + current_right_curverad) / 2
+        self.__curvatures.append(current_average_curverad)
 
-        return left_curverad, right_curverad
-        
+        if 12 <= len(self.__curvatures):
+            self.__curvatures.pop(0)
+
+        running_average_curvature = np.sum(self.__curvatures) / len(self.__curvatures)
+        return running_average_curvature
+
+    def __calculate_offset(self, image_width):
+        cam_center = (self.__left_fit[-1] + self.__right_fit[-1]) / 2
+        offset = (cam_center - image_width/2) * self.__xm_per_pix
+        return offset
+
     def process_image(self, image):
         binary_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         image_shape = binary_image.shape
@@ -181,5 +184,6 @@ class lane_analyzer(image_processor):
         else:
             processed_image = self.__search_around_poly(binary_image)
         
-        left_curverad, right_curverad = self.__calculate_curvature()
-        return processed_image, left_curverad, right_curverad
+        average_curverad = self.__calculate_curvature()
+        offset = self.__calculate_offset(image.shape[1])
+        return processed_image, average_curverad, offset

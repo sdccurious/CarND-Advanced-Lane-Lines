@@ -2,7 +2,6 @@ import cv2
 import glob
 import os
 import pickle
-import sys
 
 from moviepy.editor import VideoFileClip
 
@@ -23,27 +22,30 @@ Minv = perspective_pickle["Minv"]
 sobel_x_thresh = (12,255)
 sobel_y_thresh = (12,255)
 saturation_thresh = (100,255)
-value_thresh = (50,255)
 nwindows = 9
 margin = 100
 minpix = 50
-ym_per_pix = 30/720 # meters per pixel in y dimension
-
-lane_processor = lane_finder(mtx, dist, M, Minv, sobel_x_thresh, sobel_y_thresh, saturation_thresh, value_thresh, nwindows, margin, minpix, ym_per_pix)
+ym_per_pix = 30/720
+xm_per_pix = 3.7/700
 
 images = glob.glob('test_images/test*.jpg')
 
 for index, filename in enumerate(images):
     image = cv2.imread(filename)
-    image_with_lanes = lane_processor.process_image(image)
+
+    # create a new image lane processor for each image
+    # the first call draws the sliding rectangles and subsequent calls fill in the image with a poly
+    # so create a new one for each image to show the rectangles
+    image_lane_processor = lane_finder(mtx, dist, M, Minv, sobel_x_thresh, sobel_y_thresh, saturation_thresh, nwindows, margin, minpix, ym_per_pix, xm_per_pix)
+    image_with_lanes = image_lane_processor.process_image(image)
 
     filename_base_path, extension = os.path.splitext(filename)
     filepath, filebase = os.path.split(filename_base_path)
     processed_name = os.path.join('output_images', filebase+'processed'+extension)
     cv2.imwrite(processed_name, image_with_lanes)
 
-#sys.exit()
+video_lane_processor = lane_finder(mtx, dist, M, Minv, sobel_x_thresh, sobel_y_thresh, saturation_thresh, nwindows, margin, minpix, ym_per_pix, xm_per_pix)
 project_video_output = ('output_images/project_video_processed.mp4')
 project_video = VideoFileClip("project_video.mp4")
-project_video_clip = project_video.fl_image(lane_processor.process_image)
+project_video_clip = project_video.fl_image(video_lane_processor.process_image)
 project_video_clip.write_videofile(project_video_output, audio=False)
