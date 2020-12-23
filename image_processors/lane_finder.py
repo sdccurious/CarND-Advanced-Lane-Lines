@@ -20,12 +20,12 @@ class lane_finder(image_processor):
         self.__perspective_unwarper = perspective_warper(Minv)
         self.__lane_analyzer = lane_analyzer(nwindows, margin, minpix, ym_per_pix, xm_per_pix)
         
-    def process_image(self, image):
+    def process_image(self, image, debug=False):
         undistorted_image = self.__camera_undistorter.process_image(image)
         sobel_x_image = self.__sobel_x.process_image(undistorted_image)
         sobel_y_image = self.__sobel_y.process_image(undistorted_image)
         saturation_image = self.__saturation.process_image(undistorted_image)
-        
+
         combined = np.zeros_like(undistorted_image)
         combined[((sobel_x_image == 1) & (sobel_y_image == 1)) | (saturation_image == 1)] = 1
         warped = self.__perspective_warper.process_image(combined)
@@ -51,4 +51,12 @@ class lane_finder(image_processor):
         text = 'Offset (m): ' + str(round(offset, 3)) + ' ' + side
         bottomLeftCornerOfText = (10,200)
         image_with_lanes_and_text = cv2.putText(image_with_lanes, text, bottomLeftCornerOfText, font, fontScale, fontColor, lineType)
+
+        if debug == True:
+            cv2.imwrite('test_debug_outputs/undistorted_sample.jpg', undistorted_image)
+            cv2.imwrite('test_debug_outputs/binary_sample.jpg', combined*255)
+            cv2.imwrite('test_debug_outputs/warped_sample.jpg', warped*255)
+            cv2.imwrite('test_debug_outputs/analyzed_sample.jpg', analyzed_image)
+            cv2.imwrite('test_debug_outputs/analyzed_unwarped_sample.jpg', analyzed_image_unwarped)
+
         return image_with_lanes_and_text;
