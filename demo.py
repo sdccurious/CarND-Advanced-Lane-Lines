@@ -2,6 +2,7 @@ import cv2
 import glob
 import os
 import pickle
+import sys
 
 from moviepy.editor import VideoFileClip
 
@@ -37,13 +38,20 @@ for index, filename in enumerate(images):
     # the first call draws the sliding rectangles and subsequent calls fill in the image with a poly
     # so create a new one for each image to show the rectangles
     image_lane_processor = lane_finder(mtx, dist, M, Minv, sobel_x_thresh, sobel_y_thresh, saturation_thresh, nwindows, margin, minpix, ym_per_pix, xm_per_pix)
-    image_with_lanes = image_lane_processor.process_image(image)
+
+    if index == 0:
+        # set debug on to create images for writeup
+        debug = True
+        image_with_lanes = image_lane_processor.process_image(image, debug)
+    else:
+        image_with_lanes = image_lane_processor.process_image(image)
 
     filename_base_path, extension = os.path.splitext(filename)
     filepath, filebase = os.path.split(filename_base_path)
     processed_name = os.path.join('output_images', filebase+'processed'+extension)
     cv2.imwrite(processed_name, image_with_lanes)
 
+sys.exit()
 video_lane_processor = lane_finder(mtx, dist, M, Minv, sobel_x_thresh, sobel_y_thresh, saturation_thresh, nwindows, margin, minpix, ym_per_pix, xm_per_pix)
 project_video_output = ('output_images/project_video_processed.mp4')
 project_video = VideoFileClip("project_video.mp4")
