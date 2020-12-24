@@ -128,7 +128,7 @@ Having analyzed the image and warped it back into the camera perspective, it can
 Here's a [link to my video result](./output_images/project_video_processed.mp4).  The rectangles are only drawn for the first frame.  The lane_analyzer class subsequently fills in the lane and boundaries of the polynomial once the class has been seeded with the initial polynomial.  A sample frame looks like the following.
 
 <p float="left">
-  <img src="./test_debug_outputs/sample_video_frame.jpg" width="400" />
+  <img src="./test_debug_outputs/sample_video_frame.JPG" width="400" />
 </p>
 
 ---
