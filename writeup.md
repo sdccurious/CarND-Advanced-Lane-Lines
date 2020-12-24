@@ -57,6 +57,8 @@ The lane finding pipeline is implemented into two classes.
 
 lane_finder combines the various imaging techniques to obtain an undistorted binary image with perspective transformation.  This image is then fed into lane_analyzer to find the lane, fit a polynomial through the lane cloud of points, and determine the lane curvature and vehicle lateral offset.  This data is passed back to the lane_finder class for overlaying the found lane along with the curvature and offset info.  A step by step walkthrough of going from the original image to an analyzed image is show below.
 
+The pipeline can be demonstrated by running the [demo](demo.py) script.
+
 #### 1. Undistort the image.
 
 Using the matrix and distortion coefficients from the camera calibration script, each frame is undistorted.
