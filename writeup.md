@@ -53,7 +53,7 @@ Having setup a class for each image processing technique, I call each of them on
 
 The lane finding pipeline is implemented into two classes.
 -   [lane_finder](/image_processors/lane_finder.py)
--   [lane_analyzer](/\image_processors/lane_analyzer.py)
+-   [lane_analyzer](/image_processors/lane_analyzer.py)
 
 lane_finder combines the various imaging techniques to obtain an undistorted binary image with perspective transformation.  This image is then fed into lane_analyzer to find the lane, fit a polynomial through the lane cloud of points, and determine the lane curvature and vehicle lateral offset.  This data is passed back to the lane_finder class for overlaying the found lane along with the curvature and offset info.  A step by step walkthrough of going from the original image to an analyzed image is show below.
 
@@ -105,20 +105,31 @@ The lane_analyzer class has __calculate_curvature() and __calculate_offset() met
 
 The curvature is calculated using the by converting the pixels to meters using a rough estimate based on the expected real life size of a lane.  The radius of curvature can be calculated using the method described [here](https://www.intmath.com/applications-differentiation/8-radius-curvature.php).  
 
-#### 5. Unwarp the analyzed image and overlay with the original.
+#### 5. Unwarp the analyzed image.
 
-The process_image function of the lane
+The process_image function of the lane_analyzer class returns a warped image with the lane overlay along with the curvature and offset to display on the frame.  At this point the image is still in plan view and needs to be transformed back into the camera's perspective.  This is done at line 34 of the [lane_finder](/image_processors/lane_finder.py) class.  A different instance of the perspective_warper class is used that uses the inverse matrix of perspective transform.  A sample image before overlay is shown below.
 
-#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+<p float="left">
+  <img src="./test_debug_outputs/analyzed_unwarped_sample.jpg" width="400" />
+</p>
 
+#### 6. Overaly the analyzed image with the original and display the curvature and offset.
+
+Having analyzed the image and warped it back into the camera perspective, it can be overlayed with the original image along with the a display of the curvature and offset.  All the above steps for a single frame culminates in the following image.
+
+<p float="left">
+  <img src="./output_images/test1processed.jpg" width="400" />
+</p>
 
 ---
 
 ### Pipeline (video)
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+Here's a [link to my video result](./output_images/project_video_processed.mp4).  The rectangles are only drawn for the first frame.  The lane_analyzer class subsequently fills in the lane and boundaries of the polynomial once the class has been seeded with the initial polynomial.  A sample frame looks like the following.
 
-Here's a [link to my video result](./project_video.mp4)
+<p float="left">
+  <img src="./test_debug_outputs/sample_video_frame.jpg" width="400" />
+</p>
 
 ---
 
@@ -126,4 +137,8 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+The main problem I had was the perspective transform.  While the transform I came up with seems to find a reasonable looking lane, I would like the curvature output to be more robust.  By that I mean it should not jump around as much.  Also the initial curve should be a 1km radius and the curvature I'm getting is always more (although roughly in the right order of magnitude).  The curvature does increase significantly with the road is straight so it's not complete junk, but it could be better.
+
+Another area for improvement would be how the current implementation handles the light gray pavement.  The right side lane being fitted for that portion is poor compared to the left side.  Improving this would definitely help the curvature output be more stable.  More time could have been spent playing with the image processing thresholds and exploring perhaps more color spaces or sobel techniques.
+
+Despite the above flaws, the video still tends to follow a reasonable lane at least visually.
