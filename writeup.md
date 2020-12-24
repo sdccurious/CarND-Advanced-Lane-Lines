@@ -27,7 +27,7 @@ The undistortion step is shown in the [test script](test.py) around lines 19-23.
 
 <p float="left">
   <img src="./camera_cal/calibration1.jpg" width="400" />
-  <img src="./test_debug_outputs/undistorted_image.jpg" width="400" /> 
+  <img src="./test_debug_outputs/undistorted_image.jpg" width="400" />
 </p>
 
 ### Perspective Calibration
@@ -40,10 +40,10 @@ To be honest, this was a lot of trial and error.  I imagine in the real world, y
 
 <p float="left">
   <img src="./test_debug_outputs/perspective_image.jpg" width="400" />
-  <img src="./test_debug_outputs/perspective_image_warped.jpg" width="400" /> 
+  <img src="./test_debug_outputs/perspective_image_warped.jpg" width="400" />
 </p>
 
-The lines are roughly straight and the same distance apart at the top and bottom of the image.  The transform is implemented as an image_processor (described in the next section) in [perspective_warper](\image_processors\perspective_warper.py).  The processor can either warp or un-warp depending on the matrix argument passed in on construction.   
+The lines are roughly straight and the same distance apart at the top and bottom of the image.  The transform is implemented as an image_processor (described in the next section) in [perspective_warper](/image_processors/perspective_warper.py).  The processor can either warp or un-warp depending on the matrix argument passed in on construction.   
 
 ### Pipeline (single images)
 
@@ -52,8 +52,8 @@ The pipeline is implemented as a set of image processor classes which can be fou
 Having setup a class for each image processing technique, I call each of them on the test images from the test folder.  This is lines 27-86 in the [test script](test.py).  The output of this can be found in [test_debug_outputs](test_debug_outputs) folder.
 
 The lane finding pipeline is implemented into two classes.
--   [lane_finder](\image_processors\lane_finder.py)
--   [lane_analyzer](\image_processors\lane_analyzer.py)
+-   [lane_finder](/image_processors/lane_finder.py)
+-   [lane_analyzer](/\image_processors/lane_analyzer.py)
 
 lane_finder combines the various imaging techniques to obtain an undistorted binary image with perspective transformation.  This image is then fed into lane_analyzer to find the lane, fit a polynomial through the lane cloud of points, and determine the lane curvature and vehicle lateral offset.  This data is passed back to the lane_finder class for overlaying the found lane along with the curvature and offset info.  A step by step walkthrough of going from the original image to an analyzed image is show below.
 
@@ -63,47 +63,51 @@ Using the matrix and distortion coefficients from the camera calibration script,
 
 <p float="left">
   <img src="./test_images/test1.jpg" width="400" />
-  <img src="./test_debug_outputs/undistorted_sample.jpg" width="400" /> 
+  <img src="./test_debug_outputs/undistorted_sample.jpg" width="400" />
 </p>
 
-This is done at line 24 in the [lane_finder](\image_processors\lane_finder.py) class.
+This is done at line 24 in the [lane_finder](/image_processors/lane_finder.py) class.
 
 #### 2. Create a binary thresholded image for lane analysis.
 
 Through a little bit of experimentation and using some of the exercises from the lesson(s), I ended up using the sobel operator in X and Y along with looking at the saturation channel of the image.  By looking for activated pixels from both the X AND Y sobel operators, OR activated by the saturation transform, an image with fairly obvious lane lanes tends to be found.
 
 <p float="left">
-  <img src="./test_debug_outputs/undistorted_sample.jpg" width="400" /> 
-  <img src="./test_debug_outputs/binary_sample.jpg" width="400" /> 
+  <img src="./test_debug_outputs/undistorted_sample.jpg" width="400" />
+  <img src="./test_debug_outputs/binary_sample.jpg" width="400" />
 </p>
 
-Lines 25-30 is where this takes place in the [lane_finder](\image_processors\lane_finder.py) class.
+Lines 25-30 is where this takes place in the [lane_finder](/image_processors/lane_finder.py) class.
 
 #### 3. Apply a perspective transform for plan view lane analysis.
 
 Having created a binary image, the perspective transform is applied to get a plan view of the road to analyze the lane.  The warped image is shown below.
 
 <p float="left">
-  <img src="./test_debug_outputs/warped_sample.jpg" width="400" /> 
+  <img src="./test_debug_outputs/warped_sample.jpg" width="400" />
 </p>
 
-This warping is applied at line 31 in [lane_finder](\image_processors\lane_finder.py) class.
+This warping is applied at line 31 in [lane_finder](/image_processors/lane_finder.py) class.
 
 #### 4. Pass the warped binary image to the lane analyzer class.
 
-To separate out the responsibility of analyzing the warped image vs. creating it, there is a separate [lane analyzer](\image_processors\lane_analyzer.py) class for isolating the lane and calculating the curvature and offset.  Each frame is passed from the lane_finder class to the lane_analyzer at line 33 in  the [lane_finder](\image_processors\lane_finder.py) class.
+To separate out the responsibility of analyzing the warped image vs. creating it, there is a separate [lane analyzer](/image_processors/lane_analyzer.py) class for isolating the lane and calculating the curvature and offset.  Each frame is passed from the lane_finder class to the lane_analyzer at line 33 in  the [lane_finder](/image_processors/lane_finder.py) class.
 
-The lane_analyzer class initializes the analysis using the sliding rectangle technique (from the lessons) on the first frame that is passed in.
+The lane_analyzer class initializes the analysis using the sliding rectangle technique (from the lessons) on the first frame that is passed in.  This is done in the method [find_lane_pixels](https://github.com/sdccurious/CarND-Advanced-Lane-Lines/blob/eab4f4e1f9eabf7c37ee9c874aa7133cf22b0d17/image_processors/lane_analyzer.py#L20).
 
 <p float="left">
-  <img src="./test_debug_outputs/analyzed_sample.jpg" width="400" /> 
+  <img src="./test_debug_outputs/analyzed_sample.jpg" width="400" />
 </p>
 
-Subsequent calls to the class take advantage of having a an initialized starting point and search around the previous frame's polynomial.
+Subsequent calls to the class take advantage of having a an initialized starting point and search around the previous frame's polynomial (also reusing the code from the lessons).  This is done in the [search_around_poly](https://github.com/sdccurious/CarND-Advanced-Lane-Lines/blob/eab4f4e1f9eabf7c37ee9c874aa7133cf22b0d17/image_processors/lane_analyzer.py#L123) method.  Since there are no rectangles in this approach, the newly fitted polynomial is drawn as a filled in shape as opposed to rectangles.  This will be shown in the video down below.
 
-#### 5. Combine the above 3 into one image.
+The lane_analyzer class has __calculate_curvature() and __calculate_offset() methods for analyzing the left and right polynomials that are fitted for each frame.  In the case of the curvature output, the left and right curvatures are averaged for each frame.  A rolling average of 12 frames is used to help smooth the output that is displayed on the video.
 
+The curvature is calculated using the by converting the pixels to meters using a rough estimate based on the expected real life size of a lane.  The radius of curvature can be calculated using the method described [here](https://www.intmath.com/applications-differentiation/8-radius-curvature.php).  
 
+#### 5. Unwarp the analyzed image and overlay with the original.
+
+The process_image function of the lane
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
