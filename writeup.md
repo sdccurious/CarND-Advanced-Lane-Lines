@@ -11,16 +11,6 @@ The goals / steps of this project are the following:
 * Warp the detected lane boundaries back onto the original image.
 * Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
 
-[//]: # (Image References)
-
-[image1]: ./camera_cal/calibration1.jpg "Distorted"
-[image2]: ./test_debug_outputs/undistorted_image.jpg "Undistorted"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
-[video1]: ./project_video.mp4 "Video"
-
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
 ### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
@@ -29,11 +19,9 @@ The goals / steps of this project are the following:
 
 ### Camera Calibration
 
-#### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
+The code for this step is contained in a script called [camera_calibration](camera_calibration.py).
 
-The code for this step is contained in a script called [camera_calibration](camera_calibration.py)
-
-A checkerboard makes for a good real world object for camera calibration as it has a very distinguishable pattern (for easy mapping of points from different angles) and a known shape (for mapping those points onto a 2D grid of know shape/size).  A set of checkerboard images was provided (with 6 rows and 9 columns of interior corners).  The cv2 findChessboardCorners() function takes in a grayscale image of a checkerboard, and potentially returns the positions of the corners in 2D space.  By iterating over a set of images (at different angles/perspectives), a collection of 3D points and their 2D counterparts can be fit into the cv2 calibrateCamera() function.  This function returns 2 coefficients (saved as camera_calibration_pickle.p) which can be used later to undistort images for this camera.
+A checkerboard makes for a good real world object for camera calibration as it has a very distinguishable pattern (for easy mapping of points from different angles) and a known shape (for mapping those points onto a 2D grid of known shape).  A set of checkerboard images was provided (with 6 rows and 9 columns of interior corners).  The cv2 findChessboardCorners() function takes in a grayscale image of a checkerboard, and potentially returns the positions of the corners in 2D space.  By iterating over a set of images (at different angles/perspectives), a collection of 3D points and their 2D counterparts can be fit into the cv2 calibrateCamera() function.  This function returns 2 coefficients (matrix and distortion saved in camera_calibration_pickle.p) which can be used later to undistort images for this camera.
 
 The undistortion step is shown in the [test script](test.py) around lines 19-23.  The original distorted image is shown below with the undistorted image following.
 
@@ -42,66 +30,83 @@ The undistortion step is shown in the [test script](test.py) around lines 19-23.
   <img src="./test_debug_outputs/undistorted_image.jpg" width="400" /> 
 </p>
 
+### Perspective Calibration
+
+The code for this step is contained in a script called [perspective_calibration](perspective_calibration.py).
+
+For the perspective calibration, one of the straight line test images was used as a reference.  A trapezoid was drawn on top of the image such that the sides of the trapezoid roughly lined up with the edges of the lane.  This create a source set of 4 points for the transformation.  To get a plan view of the road, a set of corresponding rectangular (destination) points is needed that line up with the trapezoid points.  The set of source and destination points can be fed into the cv2 getPerspectiveTransform() function to get a matrix to transform from the perspective to plan view and vice versa (the inverse of the former).
+
+To be honest, this was a lot of trial and error.  I imagine in the real world, you could use a technique similar to the camera calibration whereby you take an image with known dimensions to feed the destination points for the transform.  Nonetheless, after much trial and error, the calibration (saved as perspective_calibration_pickle.p) produces the following transform.
+
+<p float="left">
+  <img src="./test_debug_outputs/perspective_image.jpg" width="400" />
+  <img src="./test_debug_outputs/perspective_image_warped.jpg" width="400" /> 
+</p>
+
+The lines are roughly straight and the same distance apart at the top and bottom of the image.  The transform is implemented as an image_processor (described in the next section) in [perspective_warper](\image_processors\perspective_warper.py).  The processor can either warp or un-warp depending on the matrix argument passed in on construction.   
+
 ### Pipeline (single images)
 
-The pipeline is implemented as a set of image processor classes which can be found in the [image_processors](image_processors) folder.
+The pipeline is implemented as a set of image processor classes which can be found in the [image_processors](image_processors) folder.  Each image processor implements the image_processor base class which has a single method called process_image.  Without any real template this time, I decided on a more object oriented approach as I was unsure how the various image processing techniques would interact with each other.  In the end it may have been easier to just leave each technique as its own function, but a more object oriented approach is more what I'm used to in my day job.
 
-#### 1. Provide an example of a distortion-corrected image.
+Having setup a class for each image processing technique, I call each of them on the test images from the test folder.  This is lines 27-86 in the [test script](test.py).  The output of this can be found in [test_debug_outputs](test_debug_outputs) folder.
 
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
-![alt text][image2]
+The lane finding pipeline is implemented into two classes.
+-   [lane_finder](\image_processors\lane_finder.py)
+-   [lane_analyzer](\image_processors\lane_analyzer.py)
 
-#### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
+lane_finder combines the various imaging techniques to obtain an undistorted binary image with perspective transformation.  This image is then fed into lane_analyzer to find the lane, fit a polynomial through the lane cloud of points, and determine the lane curvature and vehicle lateral offset.  This data is passed back to the lane_finder class for overlaying the found lane along with the curvature and offset info.  A step by step walkthrough of going from the original image to an analyzed image is show below.
 
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+#### 1. Undistort the image.
 
-![alt text][image3]
+Using the matrix and distortion coefficients from the camera calibration script, each frame is undistorted.
 
-#### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
+<p float="left">
+  <img src="./test_images/test1.jpg" width="400" />
+  <img src="./test_debug_outputs/undistorted_sample.jpg" width="400" /> 
+</p>
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+This is done at line 24 in the [lane_finder](\image_processors\lane_finder.py) class.
 
-```python
-src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
-dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
-```
+#### 2. Create a binary thresholded image for lane analysis.
 
-This resulted in the following source and destination points:
+Through a little bit of experimentation and using some of the exercises from the lesson(s), I ended up using the sobel operator in X and Y along with looking at the saturation channel of the image.  By looking for activated pixels from both the X AND Y sobel operators, OR activated by the saturation transform, an image with fairly obvious lane lanes tends to be found.
 
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+<p float="left">
+  <img src="./test_debug_outputs/undistorted_sample.jpg" width="400" /> 
+  <img src="./test_debug_outputs/binary_sample.jpg" width="400" /> 
+</p>
 
-I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+Lines 25-30 is where this takes place in the [lane_finder](\image_processors\lane_finder.py) class.
 
-![alt text][image4]
+#### 3. Apply a perspective transform for plan view lane analysis.
 
-#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
+Having created a binary image, the perspective transform is applied to get a plan view of the road to analyze the lane.  The warped image is shown below.
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+<p float="left">
+  <img src="./test_debug_outputs/warped_sample.jpg" width="400" /> 
+</p>
 
-![alt text][image5]
+This warping is applied at line 31 in [lane_finder](\image_processors\lane_finder.py) class.
 
-#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+#### 4. Pass the warped binary image to the lane analyzer class.
 
-I did this in lines # through # in my code in `my_other_file.py`
+To separate out the responsibility of analyzing the warped image vs. creating it, there is a separate [lane analyzer](\image_processors\lane_analyzer.py) class for isolating the lane and calculating the curvature and offset.  Each frame is passed from the lane_finder class to the lane_analyzer at line 33 in  the [lane_finder](\image_processors\lane_finder.py) class.
+
+The lane_analyzer class initializes the analysis using the sliding rectangle technique (from the lessons) on the first frame that is passed in.
+
+<p float="left">
+  <img src="./test_debug_outputs/analyzed_sample.jpg" width="400" /> 
+</p>
+
+Subsequent calls to the class take advantage of having a an initialized starting point and search around the previous frame's polynomial.
+
+#### 5. Combine the above 3 into one image.
+
+
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
-
-![alt text][image6]
 
 ---
 

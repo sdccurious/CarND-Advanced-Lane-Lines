@@ -54,6 +54,9 @@ class lane_finder(image_processor):
 
         if debug == True:
             cv2.imwrite('test_debug_outputs/undistorted_sample.jpg', undistorted_image)
+            cv2.imwrite('test_debug_outputs/sobel_x_sample.jpg', sobel_x_image*255)
+            cv2.imwrite('test_debug_outputs/sobel_y_sample.jpg', sobel_y_image*255)
+            cv2.imwrite('test_debug_outputs/saturation_sample.jpg', saturation_image*255)
             cv2.imwrite('test_debug_outputs/binary_sample.jpg', combined*255)
             cv2.imwrite('test_debug_outputs/warped_sample.jpg', warped*255)
             cv2.imwrite('test_debug_outputs/analyzed_sample.jpg', analyzed_image)

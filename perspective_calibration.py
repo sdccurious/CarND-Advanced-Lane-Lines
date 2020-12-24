@@ -34,10 +34,10 @@ top_y = int(y_size * horizon_location)
 cv2.circle(image, (top_x_left, top_y), circle_radius, drawing_color, circle_thickness)
 cv2.circle(image, (top_x_right, top_y), circle_radius, drawing_color, circle_thickness)
 
-#cv2.line(image, (bottom_x_left, bottom_y), (top_x_left, top_y), drawing_color, line_thickness)
-#cv2.line(image, (bottom_x_right, bottom_y), (top_x_right, top_y), drawing_color, line_thickness)
+cv2.line(image, (bottom_x_left, bottom_y), (top_x_left, top_y), drawing_color, line_thickness)
+cv2.line(image, (bottom_x_right, bottom_y), (top_x_right, top_y), drawing_color, line_thickness)
 
-cv2.imwrite('debug/perspective_image.jpg', image)
+cv2.imwrite('test_debug_outputs/perspective_image.jpg', image)
 
 src = np.float32([(top_x_left, top_y), (top_x_right, top_y), (bottom_x_right, bottom_y), (bottom_x_left, bottom_y)])
 dst = np.float32([(bottom_x_left, 0), (bottom_x_right, 0), (bottom_x_right, bottom_y), (bottom_x_left, bottom_y)])
@@ -47,7 +47,7 @@ Minv = cv2.getPerspectiveTransform(dst, src)
 image_size = (x_size, y_size)
 warped = cv2.warpPerspective(image, M, image_size, flags=cv2.INTER_LINEAR)
 
-cv2.imwrite('debug/perspective_image_warped.jpg', warped)
+cv2.imwrite('test_debug_outputs/perspective_image_warped.jpg', warped)
 
 dist_pickle = {}
 dist_pickle["M"] = M
