@@ -51,7 +51,6 @@ for index, filename in enumerate(images):
     processed_name = os.path.join('output_images', filebase+'processed'+extension)
     cv2.imwrite(processed_name, image_with_lanes)
 
-sys.exit()
 video_lane_processor = lane_finder(mtx, dist, M, Minv, sobel_x_thresh, sobel_y_thresh, saturation_thresh, nwindows, margin, minpix, ym_per_pix, xm_per_pix)
 project_video_output = ('output_images/project_video_processed.mp4')
 project_video = VideoFileClip("project_video.mp4")
